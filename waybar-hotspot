@@ -189,9 +189,9 @@ esac
 # Infinite loop to output JSON status to Waybar
 while true; do
   if pgrep -x create_ap > /dev/null; then
-    json "" "Active" "<b>$SSID : $PASSPHRASE</b>" "active"
+    json "" "active" "<b>$SSID : $PASSPHRASE</b>" "active"
   else
-    json "" "Not Active" "<b>$SSID : $PASSPHRASE</b>\n <b>Leftclick to start hotspot</b>" "not-active"
+    json "" "notactive" "<b>$SSID : $PASSPHRASE</b>\n <b>Leftclick to start hotspot</b>" "notactive"
   fi
   
   sleep "$interval"

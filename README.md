@@ -1,44 +1,27 @@
+ <div align="center" width="100%"> <img src="./Preview/waybar-Hotspot.png"> </div>
+
 # Waybar-Hotspot
-Tiny Waybar module to monitor and manage Wi-Fi hotspot status. This module displays the current state of the hotspot and provides notifications and interaction options.
+Tiny Waybar module to monitor and manage Wi-Fi hotspot status. This module displays the current state of the hotspot and provides notifications and graphical prompts via zenity.
 
 ### Features
-- Hotspot Status Display: Shows whether the Wi-Fi hotspot is active or inactive.
-- Notifications: Sends notifications about the hotspot status changes.
-- Customizable Icons: Supports different icons for active and inactive states.
-- Clickable Actions: Allows toggling the hotspot state via click.
-- Configurable Interval: Set the interval for status checks.
-
-### Instalation
-1. Clone the Repository
-``` sh
-git clone https://github.com/yourusername/waybar-hotspot.git
-cd waybar-hotspot
-```
-
-2. Copy the Configuration Files
-``` sh
-cp -r ..waybar-hotspot ~/.config/waybar/
-```
-
-3. Ensure Scripts Are Executable
-```sh
-chmod +x ~/.config/waybar/waybar-hotspot
-```sh
-
-4. Install Dependencies
-``` sh
-    Ensure you have the required dependencies installed.
-```
-
+- Start, stop, and toggle a Wi-Fi hotspot
+- Graphical prompts for configuration
+- Display connected devices
+- Generate QR codes for network details
+- Display QRCODE in tooltip
+- Supports custom config for create_ap
 ### Dependencies
 - create_ap
 - linbnotify
 - jq
 - Zenity
 
+### Installation
+1. Manually by using ``` sudo make install ```.
+2. Using AUR package ```waybar-hotspot``` (soon will be avallable on AUR)
+
 ### Usage
 Waybar Configuration
-
 Add the custom module to your Waybar configuration file:
 
 ~/.config/waybar/config.json
@@ -52,17 +35,18 @@ Add the custom module to your Waybar configuration file:
 
 ...
 
-"custom/hotspot": {
-  "format": "{icon} Hotspot",
-  "return-type": "json",
-  "format-icons": {
-    "active": "󱜠",
-    "inactive": "󱜡"
+  "custom/hotspot": {
+    "format": "{icon}",
+    "interval":5,
+    "tooltip": true,
+    "return-type": "json",
+    "format-icons": {
+      "active": "󱜠",
+      "notactive": "󱜡"
+    },
+    "exec":"waybar-hotspot -a watch",
+    "on-click":"waybar-hotspot -a toggle",
   },
-  "exec": "~/.config/waybar/waybar-hotspot -a watch",
-  "interval": 10,
-  "on-click": "~/.config/waybar/waybar-hotspot -a toggle"
-}
 
 ```
 
@@ -83,9 +67,14 @@ Add custom styles to your Waybar CSS file for better visual representation:
 ### Command-line Options
 The script supports the following options:
 
-- status: Start a new create_ap and display the current status of the Wi-Fi hotspot.
-- stop: Stop all create_ap if any and display status of Wi-Fi Hotspot.
-- toggle: Toggle the Wi-Fi hotspot on or off.
+- -c :Supports custom config for create_ap.
+- ``` -a status ```: Start a new create_ap and display the current status of the Wi-Fi hotspot.
+- ``` -a stop ```: Stop all create_ap if any and display status of Wi-Fi Hotspot.
+- ``` -a toggle ```: Toggle the Wi-Fi Hotspot on or off.
+- ``` -a new ```: Create new config for new Wi-Fi Hotspot.
+- ``` -a showqr ```: Display QR code to connect to the Wi-Fi Hotspot.
+- ``` -a scan ```: Scan all connected devices and display IP addresses and Hostname.
+- ``` watch ```: Output the status in JSON format.
 
 
 ### License

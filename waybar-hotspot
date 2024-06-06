@@ -9,6 +9,8 @@ SSID="${SSID:-MyHotspot}"
 PASSPHRASE="${PASSPHRASE:-1234500000}"
 CHANNEL="${CHANNEL:-default}"
 ACTION="${ACTION:-toggle}"
+HIDDEN="${HIDDEN:-false}"
+ENCRYPTION="${ENCRYPTION:-WPA2}"
 
 # Function to display usage
 usage() {
@@ -42,17 +44,27 @@ json() {
     '{"text": $text, "alt": $alt, "tooltip": $tooltip, "class": $class}'
 }
 
+get_network_interfaces() {
+    ip -o link show | awk -F': ' '{print $2}'
+}
+
+# Capture the network interfaces
+interfaces=$(get_network_interfaces)
+
+# Format the interfaces for Zenity dropdown (comma-separated)
+interfaces_formatted=$(echo $interfaces | tr ' ' '|')
+
 # Function to prompt user with zenity and fill in the details
 prompt_zenity() {
     form_output=$(zenity --forms --title="Hotspot Configuration" --text="Enter Hotspot Details" \
-        --add-entry="Wi-Fi Interface (e.g., wlan0)" \
-        --add-entry="Share Interface (e.g., eth0)" \
+        --add-combo="Wi-Fi Interface" --combo-values="$interfaces_formatted" \
+        --add-combo="Share Interface (source)" --combo-values="$interfaces_formatted" \
         --add-entry="SSID (Network name)" \
         --add-entry="Passphrase" \
         --add-entry="Channel (e.g., default or a number)" \
         --add-combo="Action" --combo-values="toggle|start|stop")
 
-    if [ $? -eq 0 ]; then
+        if [ $? -eq 0 ]; then
         IFS="|" read -r WIFI_IFACE INTERNET_IFACE SSID PASSPHRASE CHANNEL ACTION <<< "$form_output"
     else
         zenity --error --text="No input provided, exiting."
@@ -61,6 +73,7 @@ prompt_zenity() {
 }
 
 create_config() {
+  mkdir -p $(dirname $CONFIG_FILE)
   prompt_zenity
   cat <<EOL > "$CONFIG_FILE"
 CHANNEL=default
@@ -98,16 +111,18 @@ EOL
 load_config() {
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
-    else
-        notify "Configuration file not found!"
-        create_config
-        source "$CONFIG_FILE"
     fi
 }
 
 # Function to start the hotspot
 start_hotspot() {
-    load_config 
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+    else
+        notify "Configuration file not found!"
+        create_config
+        source "$CONFIG_FILE"
+    fi
     notify "Starting hotspot..."
     # Prompt for sudo password using zenity
     PASSWORD=$(zenity --password --title="Authentication Required")
@@ -123,6 +138,9 @@ start_hotspot() {
     else
         echo "$PASSWORD" | sudo -S create_ap -c "$CHANNEL" "$WIFI_IFACE" "$INTERNET_IFACE" "$SSID" "$PASSPHRASE" >/dev/null 2>&1 &
     fi
+
+    notify "Hotspot started" "$SSID:$PASSPHRASE"
+
 }
 
 # Function to stop the hotspot
@@ -130,6 +148,8 @@ stop_hotspot() {
     notify "Stopping hotspot..."
     PASSWORD=$(zenity --password --title="Authentication Required")
     echo "$PASSWORD" | sudo -S pkill create_ap >/dev/null 2>&1
+    notify "hotspot stoped"
+
 }
 
 # Function to toggle the hotspot
@@ -139,6 +159,22 @@ toggle_hotspot() {
     else
         start_hotspot
     fi
+}
+
+#generate Qrcode for tooltip: 
+get_qrcode(){
+  load_config
+  QR_CONFIG="WIFI:S:$SSID;w;T:$ENCRYPTION;P:$PASSPHRASE;H:$HIDDEN;;"
+  qr --ascii $QR_CONFIG
+  # echo "$QR_CONFIG"
+}
+
+
+fmt_tooltip() {
+  load_config
+  tooltip+="    NAME:    $SSID\n    PASSWORD: $PASSPHRASE\n"
+  tooltip+=$(get_qrcode)
+  echo -e "$tooltip"
 }
 
 # Parse command-line options
@@ -171,6 +207,10 @@ case $ACTION in
     watch)
         #do nothing
         ;;
+    showqr)
+      get_qrcode
+        ;;
+
     start)
         start_hotspot
         ;;
@@ -180,6 +220,10 @@ case $ACTION in
     toggle)
         toggle_hotspot
         ;;
+    new)
+      prompt_zenity
+      start_hotspot
+        ;;
     *)
         zenity --error --text="Invalid action: $ACTION"
         exit 1
@@ -187,13 +231,8 @@ case $ACTION in
 esac
 
 # Infinite loop to output JSON status to Waybar
-while true; do
   if pgrep -x create_ap > /dev/null; then
-    json "" "active" "<b>$SSID : $PASSPHRASE</b>" "active"
+    json "" "active" "$(fmt_tooltip)" "active"
   else
-    json "" "notactive" "<b>$SSID : $PASSPHRASE</b>\n <b>Leftclick to start hotspot</b>" "notactive"
+    json "" "notactive" "Click to start hotspot" "notactive"
   fi
-  
-  sleep "$interval"
-done
-
